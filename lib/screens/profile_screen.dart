@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../app_colors.dart';
@@ -252,6 +253,10 @@ class _GoogleWebViewScreenState extends State<GoogleWebViewScreen> {
   @override
   void initState() {
     super.initState();
+    if (kIsWeb) {
+      _isLoading = false;
+      return;
+    }
     try {
       _controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -293,7 +298,41 @@ class _GoogleWebViewScreenState extends State<GoogleWebViewScreen> {
       ),
       body: Stack(
         children: [
-          if (_controller != null)
+          if (kIsWeb)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.linkBlue.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.language, size: 48, color: AppColors.linkBlue),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Google Web View',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'In-app WebView aktif di Android & iOS.\nUntuk versi Web, Anda dapat mengakses https://www.google.com secara langsung.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_controller != null)
             WebViewWidget(controller: _controller!)
           else
             const Center(
