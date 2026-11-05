@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Nilai konfigurasi FCM dikirim saat build, bukan ditanam di kode:
 ///
@@ -78,6 +79,42 @@ class PushService {
   String? token;
   String? galat;
   bool izinDiberikan = false;
+
+  /// Kapan token terakhir terbit — ditampilkan di layar status supaya jelas
+  /// token yang tersimpan masih yang aktif atau sudah dicabut.
+  DateTime? waktuToken;
+
+  /// Token yang tersimpan walau aplikasi dimuat ulang. Token web bisa
+  /// dicabut server (device unregistered), jadi umurnya perlu terlihat.
+  Future<void> pulihkanToken() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final tersimpan = p.getString('fcm_token');
+      final waktu = p.getInt('fcm_token_waktu');
+      if (tersimpan != null && tersimpan.isNotEmpty) {
+        token ??= tersimpan;
+        if (waktu != null) {
+          waktuToken = DateTime.fromMillisecondsSinceEpoch(waktu);
+        }
+      }
+    } catch (_) {
+      // Penyimpanan lokal tidak tersedia (mis. mode privat ketat) — abaikan,
+      // token tetap bisa dipakai selama sesi ini.
+    }
+  }
+
+  Future<void> _simpanToken(String nilai) async {
+    final waktu = DateTime.now();
+    waktuToken = waktu;
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString('fcm_token', nilai);
+      await p.setInt('fcm_token_waktu', waktu.millisecondsSinceEpoch);
+    } catch (_) {
+      // Gagal menyimpan bukan alasan menggagalkan push.
+    }
+  }
+
   StreamSubscription<RemoteMessage>? _langgananPesan;
 
   /// Kembalikan ke kondisi awal — dipakai tes supaya status tidak bocor
@@ -87,6 +124,7 @@ class PushService {
     status.value = StatusPush.belumDikonfigurasi;
     galat = null;
     token = null;
+    waktuToken = null;
     izinDiberikan = false;
   }
 
@@ -94,6 +132,7 @@ class PushService {
     if (status.value == StatusPush.siap) return;
 
     status.value = StatusPush.menyiapkan;
+    await pulihkanToken();
     try {
       if (Firebase.apps.isEmpty) {
         if (KonfigurasiPush.lengkap) {
@@ -134,6 +173,10 @@ class PushService {
         status.value = StatusPush.gagal;
         return;
       }
+
+      // Simpan supaya token tetap terlihat walau halaman dimuat ulang, dan
+      // supaya jelas kapan terakhir terbit (token web bisa dicabut).
+      await _simpanToken(token!);
 
       // Langganan topik hanya ada di Android/iOS; di web FCM tidak
       // mendukungnya (lempar UnimplementedError) — di sana pengiriman

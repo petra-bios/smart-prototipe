@@ -1,9 +1,17 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app_colors.dart';
 import '../services/push_service.dart';
+
+/// Format ringkas untuk waktu terbit token (dd/MM HH:mm, waktu lokal).
+String _formatWaktu(DateTime waktu) {
+  final l = waktu.toLocal();
+  String dua(int n) => n.toString().padLeft(2, '0');
+  return '${dua(l.day)}/${dua(l.month)} ${dua(l.hour)}:${dua(l.minute)}';
+}
 
 /// Layar status push notifikasi (FCM).
 ///
@@ -65,12 +73,42 @@ class _PushStatusScreenState extends State<PushStatusScreen> {
                 const SizedBox(height: 20),
               ],
               if (PushService.instance.token != null) ...[
-                const Text('Token perangkat', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text('Token perangkat',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: PushService.instance.token!),
+                        );
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Token disalin')),
+                        );
+                      },
+                      icon: const Icon(Icons.copy, size: 16),
+                      label: const Text('Salin'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
                 SelectableText(
                   PushService.instance.token!,
                   style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
                 ),
+                if (PushService.instance.waktuToken != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Terbit: ${_formatWaktu(PushService.instance.waktuToken!)}',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
               ],
               if (PushService.instance.galat != null) ...[
