@@ -93,3 +93,19 @@ flutter build web --release <flag...>
 - **Android** minta izin notifikasi (Android 13+) saat aplikasi dibuka.
 - Notifikasi latar (app ditutup) di web ditangani `web/firebase-messaging-sw.js`
   yang digenerasi script di atas.
+
+## Build dengan nilai FCM — pakai skrip, jangan rakit flag di shell
+
+```bash
+./tool/build_fcm.sh        # analyze + test + web + APK arm64 + zip
+```
+
+Skrip ini memakai `--dart-define-from-file` (nilai diambil dari `.fcm.env`).
+
+**Jangan** merakit `FLAGS="--dart-define=A=1 --dart-define=B=2"` lalu memakai
+`flutter build web $FLAGS`. Di **zsh** variabel tidak dipecah jadi kata, jadi
+seluruh string masuk sebagai nilai define **pertama** dan define lain hilang —
+gejalanya aplikasi menampilkan "push belum diisi" walau semua nilai sudah ada.
+
+Penanda build ditampilkan di layar login (`build <tag> · push siap (6/6)`),
+jadi mudah memastikan bundle mana yang sedang dibuka.

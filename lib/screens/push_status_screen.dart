@@ -129,6 +129,15 @@ class _PushStatusScreenState extends State<PushStatusScreen> {
                 ),
                 child: const Text('Minta izin / perbarui token'),
               ),
+              const SizedBox(height: 12),
+              Text(
+                'Build: ${KonfigurasiPush.buildTag} · '
+                'config ${6 - KonfigurasiPush.hilang.length}/6',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           );
         },

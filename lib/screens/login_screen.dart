@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../data/dummy_data.dart';
+import '../services/push_service.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -208,12 +209,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 36),
-                  // Teks abu-abu kecil "Versi 5.7.0 prototipe" di tengah
+                  // Teks abu-abu kecil "Versi 5.7.0 prototipe" di tengah.
+                  // Penanda build ikut ditampilkan supaya jelas bundle mana yang
+                  // sedang dibuka (sumber kebingungan: cache service worker).
                   const Center(
                     child: Text(
                       'Versi 5.7.0 prototipe',
                       style: TextStyle(
                         fontSize: 12,
+                        color: AppColors.textLight,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Center(
+                    child: Text(
+                      'build ${KonfigurasiPush.buildTag} · '
+                      'push ${KonfigurasiPush.lengkap ? "siap" : "belum diisi"} '
+                      '(${6 - KonfigurasiPush.hilang.length}/6)',
+                      style: const TextStyle(
+                        fontSize: 10,
                         color: AppColors.textLight,
                       ),
                     ),

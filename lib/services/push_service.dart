@@ -26,6 +26,11 @@ class KonfigurasiPush {
   static const String storageBucket =
       String.fromEnvironment('FCM_STORAGE_BUCKET', defaultValue: '');
 
+  /// Penanda build — supaya bisa dipastikan bundle mana yang sedang dibuka
+  /// (masalah paling sering: browser menyajikan bundle lama dari cache).
+  static const String buildTag =
+      String.fromEnvironment('BUILD_TAG', defaultValue: 'dev');
+
   static bool get lengkap {
     final appId = kIsWeb ? webAppId : androidAppId;
     final dasar = apiKey.isNotEmpty &&
@@ -146,7 +151,13 @@ class PushService {
     });
 
     try {
-      await messaging.register();
+      // register() di web bisa menggantung kalau izin notifikasi belum
+      // diberikan (tidak ada dialog di lingkungan headless/denied), jadi
+      // diberi batas waktu supaya status tidak tersangkut di "Menyiapkan…".
+      await messaging.register().timeout(
+        const Duration(seconds: 12),
+        onTimeout: () {},
+      );
       return await token.future.timeout(
         const Duration(seconds: 15),
         onTimeout: () => null,
