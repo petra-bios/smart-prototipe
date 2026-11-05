@@ -46,3 +46,7 @@ app.*.map.json
 
 # Build outputs & archives
 *.zip
+
+# FCM config (rahasia lokal)
+.fcm.env
+web/firebase-messaging-sw.js

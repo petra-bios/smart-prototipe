@@ -1,15 +1,20 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../data/dummy_data.dart';
 import '../services/dummy_push_service.dart';
+import '../services/push_service.dart';
 import '../widgets/achievement_card.dart';
 import '../widgets/clock_in_card.dart';
 import '../widgets/promo_cards_section.dart';
 import '../widgets/survey_banner.dart';
 import 'application_screen.dart';
+import 'camera_screen.dart';
 import 'inbox_screen.dart';
 import 'product_screen.dart';
 import 'profile_screen.dart';
+import 'push_status_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialIndex;
@@ -29,6 +34,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pushService.init();
+    // FCM: kalau build punya nilai konfigurasi, izin diminta & token diambil.
+    // Tanpa konfigurasi, statusnya "belum dikonfigurasi" dan app tetap jalan.
+    PushService.instance.inisialisasi();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _pushService.showNotification(
@@ -43,6 +51,27 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _currentIndex = index;
     });
+  }
+
+  Future<void> _bukaKamera() async {
+    final hasil = await Navigator.push<Uint8List?>(
+      context,
+      MaterialPageRoute(builder: (_) => const CameraScreen()),
+    );
+    if (!mounted || hasil == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Foto diambil (${hasil.lengthInBytes ~/ 1024} KB) — dummy, tidak dikirim ke mana pun'),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _bukaNotifikasi() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PushStatusScreen()),
+    );
   }
 
   void _openApplicationScreen() {
@@ -223,11 +252,86 @@ class _HomeScreenState extends State<HomeScreen> {
                     // ONLY entrypoint to ApplicationScreen is "Buat Kontrak"
                     onCreateContractTap: _openApplicationScreen,
                   ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Menu',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MenuTile(
+                          icon: Icons.photo_camera_outlined,
+                          label: 'Kamera',
+                          onTap: _bukaKamera,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _MenuTile(
+                          icon: Icons.notifications_none,
+                          label: 'Notifikasi',
+                          onTap: _bukaNotifikasi,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+/// Tile menu kecil di Beranda.
+class _MenuTile extends StatelessWidget {
+  const _MenuTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.cardBorder),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.primaryRed),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+          ],
+        ),
       ),
     );
   }
