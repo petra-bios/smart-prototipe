@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
@@ -157,7 +158,10 @@ class _PushStatusScreenState extends State<PushStatusScreen> {
       StatusPush.siap => (
           Colors.green,
           'Siap menerima push',
-          'Token sudah diambil dan perangkat berlangganan topik "semua".',
+          kIsWeb
+              ? 'Token sudah diambil. Kirim pesan ke token ini dari Firebase '
+                  'Console (web tidak memakai topik).'
+              : 'Token sudah diambil dan perangkat berlangganan topik "semua".',
         ),
       StatusPush.gagal => (
           Colors.red,

@@ -122,6 +122,19 @@ class PushService {
 
       token = await _daftarkan(messaging);
 
+      // Token kosong = belum bisa menerima push sama sekali. Dulu statusnya
+      // tetap "siap" sehingga aplikasi terlihat sehat padahal tidak ada
+      // token yang bisa dikirimi pesan.
+      if (token == null || token!.isEmpty) {
+        galat = kIsWeb
+            ? 'Token belum terbit. Pastikan izin notifikasi diberikan, halaman '
+                'dibuka lewat localhost atau HTTPS, lalu tekan '
+                '"Minta izin / perbarui token".'
+            : 'Token belum terbit — periksa koneksi internet dan konfigurasi FCM.';
+        status.value = StatusPush.gagal;
+        return;
+      }
+
       // Langganan topik hanya ada di Android/iOS; di web FCM tidak
       // mendukungnya (lempar UnimplementedError) — di sana pengiriman
       // langsung ke token, jadi dilewati dan status tetap "siap".
@@ -144,6 +157,10 @@ class PushService {
 
   /// firebase_messaging 17: pendaftaran lewat register() lalu token
   /// diterima dari stream onRegistered.
+  ///
+  /// Di web, register() WAJIB diberi `vapidKey` dan jalur service worker —
+  /// tanpa keduanya token tidak pernah terbit (gejalanya: status siap tapi
+  /// Token perangkat kosong).
   Future<String?> _daftarkan(FirebaseMessaging messaging) async {
     final token = Completer<String?>();
     final langganan = messaging.onRegistered.listen((nilai) {
@@ -151,15 +168,20 @@ class PushService {
     });
 
     try {
-      // register() di web bisa menggantung kalau izin notifikasi belum
-      // diberikan (tidak ada dialog di lingkungan headless/denied), jadi
-      // diberi batas waktu supaya status tidak tersangkut di "Menyiapkan…".
-      await messaging.register().timeout(
-        const Duration(seconds: 12),
-        onTimeout: () {},
-      );
+      await messaging
+          .register(
+            vapidKey: kIsWeb && KonfigurasiPush.vapidKey.isNotEmpty
+                ? KonfigurasiPush.vapidKey
+                : null,
+            serviceWorkerScriptPath:
+                kIsWeb ? '/firebase-messaging-sw.js' : null,
+          )
+          .timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {},
+          );
       return await token.future.timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 20),
         onTimeout: () => null,
       );
     } finally {
