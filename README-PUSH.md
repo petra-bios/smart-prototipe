@@ -5,6 +5,36 @@ Yang belum ada hanya nilainya (milik project Firebase kamu). Tanpa nilai itu,
 menu **Notifikasi** menampilkan "Belum dikonfigurasi" dan aplikasi tetap
 berjalan normal — tidak crash, tidak ada klaim palsu bahwa push aktif.
 
+## Jalur paling praktis: `google-services.json`
+
+Kalau kamu tidak mau mengetik nilai satu per satu:
+
+1. Firebase Console → Project settings → **Your apps → Android** →
+   **Download google-services.json**
+2. Taruh di `android/app/google-services.json` (sudah masuk `.gitignore`)
+
+Itu **cukup untuk Android** — plugin Gradle `com.google.gms.google-services`
+dipasang otomatis saat build kalau berkasnya ada, dan aplikasi memakai opsinya
+langsung. Android push siap tanpa `--dart-define` apa pun.
+
+**Web tetap butuh dua nilai tambahan**, karena keduanya tidak ada di
+`google-services.json`:
+
+- `FCM_WEB_APP_ID` — dari app **Web** di project yang sama (Project settings →
+  Your apps → Web app → `appId`)
+- `FCM_VAPID_KEY` — Project settings → Cloud Messaging → Web Push certificates
+
+Taruh dua nilai itu di `.fcm.env`, lalu:
+
+```bash
+python3 tool/siapkan_web_push.py --flags
+```
+
+Script membaca `google-services.json` dulu, jadi yang perlu kamu isi hanya dua
+nilai web itu.
+
+## Kalau mau tanpa berkas sama sekali (dart-define)
+
 ## Yang perlu kamu siapkan (sekali saja)
 
 Semua diambil dari [Firebase Console](https://console.firebase.google.com):

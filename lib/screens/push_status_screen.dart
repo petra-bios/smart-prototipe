@@ -10,7 +10,10 @@ import '../services/push_service.dart';
 /// nilai build-flag mana yang masih kosong — supaya tidak perlu nebak-nebak
 /// saat menguji push di Android maupun web.
 class PushStatusScreen extends StatefulWidget {
-  const PushStatusScreen({super.key});
+  const PushStatusScreen({super.key, this.autoInisialisasi = true});
+
+  /// Dimatikan di tes widget supaya tidak menunggu kanal platform Firebase.
+  final bool autoInisialisasi;
 
   @override
   State<PushStatusScreen> createState() => _PushStatusScreenState();
@@ -20,7 +23,7 @@ class _PushStatusScreenState extends State<PushStatusScreen> {
   @override
   void initState() {
     super.initState();
-    PushService.instance.inisialisasi();
+    if (widget.autoInisialisasi) PushService.instance.inisialisasi();
   }
 
   @override
@@ -35,6 +38,12 @@ class _PushStatusScreenState extends State<PushStatusScreen> {
             children: [
               _kartuStatus(status),
               const SizedBox(height: 20),
+              const Text(
+                'Android: cukup taruh android/app/google-services.json, '
+                'plugin Gradle dipasang otomatis saat build.',
+                style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+              ),
+              const SizedBox(height: 8),
               if (KonfigurasiPush.hilang.isNotEmpty) ...[
                 const Text(
                   'Nilai yang belum diisi',

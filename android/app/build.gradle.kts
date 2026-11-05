@@ -5,6 +5,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// FCM lewat google-services.json: plugin hanya dipasang kalau berkasnya ada,
+// supaya build tetap jalan sebelum kamu menaruh konfigurasi Firebase.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.example.smart_prototipe"
     compileSdk = flutter.compileSdkVersion

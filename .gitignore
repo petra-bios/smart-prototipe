@@ -50,3 +50,6 @@ app.*.map.json
 # FCM config (rahasia lokal)
 .fcm.env
 web/firebase-messaging-sw.js
+
+# Konfigurasi Firebase (jangan di-commit)
+android/app/google-services.json

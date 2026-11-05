@@ -39,10 +39,17 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(PushStatusScreen), findsOneWidget);
+
+      // Layar status memulai inisialisasi FCM yang punya batas waktu 20 detik;
+      // habiskan timernya supaya tidak tertinggal saat tes selesai.
+      await tester.pump(const Duration(seconds: 21));
+      await tester.pumpAndSettle();
     });
   });
 
   group('Konfigurasi push', () {
+    setUp(() => PushService.instance.setelUlang());
+
     test('tanpa dart-define, konfigurasi dianggap belum lengkap', () {
       expect(KonfigurasiPush.lengkap, isFalse);
       expect(KonfigurasiPush.hilang, isNotEmpty);
@@ -54,7 +61,9 @@ void main() {
     });
 
     testWidgets('layar status menjelaskan push belum aktif', (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: PushStatusScreen()));
+      await tester.pumpWidget(
+        const MaterialApp(home: PushStatusScreen(autoInisialisasi: false)),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Belum dikonfigurasi'), findsOneWidget);

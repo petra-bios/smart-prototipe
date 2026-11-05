@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app_colors.dart';
 import 'screens/login_screen.dart';
+import 'services/push_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,6 +12,9 @@ void main() {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+  // FCM: dimulai sekali saat aplikasi jalan. Tanpa konfigurasi, statusnya
+  // "belum dikonfigurasi" dan aplikasi tetap berjalan normal.
+  PushService.instance.inisialisasi();
   runApp(const SmartPrototipeApp());
 }
 

@@ -75,18 +75,34 @@ class PushService {
   bool izinDiberikan = false;
   StreamSubscription<RemoteMessage>? _langgananPesan;
 
+  /// Kembalikan ke kondisi awal — dipakai tes supaya status tidak bocor
+  /// antar kasus (singleton).
+  @visibleForTesting
+  void setelUlang() {
+    status.value = StatusPush.belumDikonfigurasi;
+    galat = null;
+    token = null;
+    izinDiberikan = false;
+  }
+
   Future<void> inisialisasi() async {
     if (status.value == StatusPush.siap) return;
-
-    if (!KonfigurasiPush.lengkap) {
-      status.value = StatusPush.belumDikonfigurasi;
-      return;
-    }
 
     status.value = StatusPush.menyiapkan;
     try {
       if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp(options: KonfigurasiPush.opsi());
+        if (KonfigurasiPush.lengkap) {
+          await Firebase.initializeApp(options: KonfigurasiPush.opsi());
+        } else if (!kIsWeb) {
+          // Android: opsi dibaca langsung dari android/app/google-services.json
+          // (plugin Gradle dipasang otomatis kalau berkas itu ada).
+          await Firebase.initializeApp().timeout(const Duration(seconds: 20));
+        } else {
+          galat = 'Konfigurasi web belum diisi: '
+              '${KonfigurasiPush.hilang.join(', ')}';
+          status.value = StatusPush.belumDikonfigurasi;
+          return;
+        }
       }
 
       final messaging = FirebaseMessaging.instance;
@@ -111,7 +127,8 @@ class PushService {
       status.value = StatusPush.siap;
     } catch (e) {
       galat = e.toString();
-      status.value = StatusPush.gagal;
+      status.value =
+          KonfigurasiPush.lengkap ? StatusPush.gagal : StatusPush.belumDikonfigurasi;
     }
   }
 

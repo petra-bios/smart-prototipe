@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../data/dummy_data.dart';
 import '../services/dummy_push_service.dart';
-import '../services/push_service.dart';
 import '../widgets/achievement_card.dart';
 import '../widgets/clock_in_card.dart';
 import '../widgets/promo_cards_section.dart';
@@ -34,9 +33,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pushService.init();
-    // FCM: kalau build punya nilai konfigurasi, izin diminta & token diambil.
-    // Tanpa konfigurasi, statusnya "belum dikonfigurasi" dan app tetap jalan.
-    PushService.instance.inisialisasi();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _pushService.showNotification(
