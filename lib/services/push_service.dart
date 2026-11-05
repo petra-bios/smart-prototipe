@@ -117,7 +117,12 @@ class PushService {
 
       token = await _daftarkan(messaging);
 
-      await messaging.subscribeToTopic('semua');
+      // Langganan topik hanya ada di Android/iOS; di web FCM tidak
+      // mendukungnya (lempar UnimplementedError) — di sana pengiriman
+      // langsung ke token, jadi dilewati dan status tetap "siap".
+      if (!kIsWeb) {
+        await messaging.subscribeToTopic('semua');
+      }
 
       _langgananPesan?.cancel();
       _langgananPesan = FirebaseMessaging.onMessage.listen((pesan) {
