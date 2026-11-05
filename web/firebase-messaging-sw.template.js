@@ -14,12 +14,16 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const judul = payload.notification?.title || 'SMART';
-  const opsi = {
-    body: payload.notification?.body || '',
+  // Pesan bertipe "notification" SUDAH ditampilkan otomatis oleh SDK. Kalau
+  // kita panggil showNotification lagi, user menerima notifikasi ganda —
+  // jadi handler ini hanya untuk pesan "data-only".
+  if (payload.notification?.title || payload.notification?.body) return;
+
+  const judul = payload.data?.judul || 'SMART';
+  self.registration.showNotification(judul, {
+    body: payload.data?.isi || '',
     icon: '/icons/Icon-192.png',
-  };
-  self.registration.showNotification(judul, opsi);
+  });
 });
 
 self.addEventListener('notificationclick', (event) => {

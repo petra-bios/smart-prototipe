@@ -29,6 +29,10 @@ sed 's/=.*/=<diisi>/' "$TMP_DEFINE"
 flutter analyze
 flutter test
 
+# Service worker HARUS digenerasi ulang setiap build — kalau tidak, versi lama
+# tertinggal di web/ dan ikut terpaket (pernah bikin notifikasi dobel).
+python3 tool/siapkan_web_push.py
+
 flutter build web --release --dart-define-from-file="$TMP_DEFINE"
 flutter build apk --release --target-platform android-arm64 \
   --dart-define-from-file="$TMP_DEFINE"
