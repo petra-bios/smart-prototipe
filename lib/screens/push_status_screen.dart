@@ -39,9 +39,13 @@ class _PushStatusScreenState extends State<PushStatusScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Notifikasi')),
-      body: ValueListenableBuilder<StatusPush>(
-        valueListenable: PushService.instance.status,
-        builder: (context, status, _) {
+      body: ListenableBuilder(
+        listenable: Listenable.merge([
+          PushService.instance.status,
+          PushService.instance.revisi,
+        ]),
+        builder: (context, _) {
+          final status = PushService.instance.status.value;
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -76,7 +80,7 @@ class _PushStatusScreenState extends State<PushStatusScreen> {
                 Row(
                   children: [
                     const Expanded(
-                      child: Text('Token perangkat',
+                      child: Text('ID perangkat (FID)',
                           style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                     TextButton.icon(
@@ -86,7 +90,7 @@ class _PushStatusScreenState extends State<PushStatusScreen> {
                         );
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Token disalin')),
+                          const SnackBar(content: Text('ID disalin')),
                         );
                       },
                       icon: const Icon(Icons.copy, size: 16),
@@ -197,8 +201,9 @@ class _PushStatusScreenState extends State<PushStatusScreen> {
           Colors.green,
           'Siap menerima push',
           kIsWeb
-              ? 'Token sudah diambil. Kirim pesan ke token ini dari Firebase '
-                  'Console (web tidak memakai topik).'
+              ? 'Sudah terdaftar. Kirim dengan tool/kirim_push.py <ID>. Saat tab '
+                  'sedang terlihat, pesan muncul di dalam aplikasi; notifikasi sistem '
+                  'muncul saat tab di latar.'
               : 'Token sudah diambil dan perangkat berlangganan topik "semua".',
         ),
       StatusPush.gagal => (

@@ -109,3 +109,41 @@ gejalanya aplikasi menampilkan "push belum diisi" walau semua nilai sudah ada.
 
 Penanda build ditampilkan di layar login (`build <tag> · push siap (6/6)`),
 jadi mudah memastikan bundle mana yang sedang dibuka.
+
+## Kirim dan uji push web
+
+firebase_messaging 17 memberi **Firebase Installation ID (FID)**, bukan token
+lama. Salin dari menu Notifikasi, lalu:
+
+    python3 tool/kirim_push.py <FID> "Judul" "Isi"
+
+Skrip mengirim lewat field `fid` di FCM HTTP v1. Field `token` tidak dipakai
+untuk nilai ini.
+
+- **Tab fokus:** pesan tampil sebagai SnackBar di aplikasi. **Tab terlihat tapi
+  tidak fokus** ditampilkan oleh handler `push` di service worker, dan **tab
+  tersembunyi** ditampilkan oleh SDK Firebase.
+- **Jangan pakai service worker Flutter.** `web/flutter_bootstrap.js` sengaja
+  memanggil `_flutter.loader.load()` tanpa `serviceWorkerSettings`, karena
+  service worker itu menimpa `firebase-messaging-sw.js` lalu membatalkan
+  registrasinya, sehingga langganan push ikut hilang.
+- **Browser yang pernah membuka build lama:** hapus data situs sekali
+  (DevTools → Application → Storage → Clear site data), lalu muat ulang. SDK
+  menyimpan status "sudah terdaftar" selama 7 hari dan tidak mendaftar ulang
+  walau langganannya sudah hilang.
+- Versi Firebase JS di service worker harus sama dengan SDK halaman (sekarang
+  13.1.0).
+
+## Form uji push
+
+    python3 tool/form_push.py
+
+Buka `http://localhost:8787`. Form memakai service account yang sama dengan
+`kirim_push.py`, dan kuncinya tidak pernah dikirim ke halaman.
+
+- **Tes notifikasi lokal** tidak memakai Firebase. Kalau tidak muncul, yang
+  memblokir adalah browser atau macOS.
+- **Daftarkan browser ini** memakai SDK Firebase tanpa Flutter, jadi bisa
+  memisahkan masalah Firebase dari masalah aplikasi.
+- Jalur data-only ditampilkan oleh service worker, sedangkan jalur notification
+  ditampilkan oleh SDK Firebase.

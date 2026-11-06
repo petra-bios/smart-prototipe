@@ -117,6 +117,11 @@ class PushService {
 
   StreamSubscription<RemoteMessage>? _langgananPesan;
 
+  /// Naik setiap token/galat berubah supaya layar status ikut digambar ulang.
+  final ValueNotifier<int> revisi = ValueNotifier<int>(0);
+  Future<void>? _sedangInisialisasi;
+  StreamSubscription<String>? _langgananDaftar;
+
   /// Kembalikan ke kondisi awal — dipakai tes supaya status tidak bocor
   /// antar kasus (singleton).
   @visibleForTesting
@@ -126,12 +131,22 @@ class PushService {
     token = null;
     waktuToken = null;
     izinDiberikan = false;
+    _sedangInisialisasi = null;
   }
 
-  Future<void> inisialisasi() async {
-    if (status.value == StatusPush.siap) return;
+  /// main() dan layar status sama-sama memanggil ini; panggilan yang
+  /// bersamaan memakai proses yang sama supaya register() tidak balapan.
+  Future<void> inisialisasi() {
+    if (status.value == StatusPush.siap) return Future<void>.value();
+    return _sedangInisialisasi ??= _inisialisasi().whenComplete(() {
+      _sedangInisialisasi = null;
+      revisi.value++;
+    });
+  }
 
+  Future<void> _inisialisasi() async {
     status.value = StatusPush.menyiapkan;
+    galat = null;
     await pulihkanToken();
     try {
       if (Firebase.apps.isEmpty) {
@@ -158,6 +173,14 @@ class PushService {
       izinDiberikan = pengaturan.authorizationStatus ==
               AuthorizationStatus.authorized ||
           pengaturan.authorizationStatus == AuthorizationStatus.provisional;
+
+      // FID bisa berganti kapan saja (mis. pushsubscriptionchange); selalu
+      // simpan nilai terbaru supaya yang ditampilkan tidak basi.
+      _langgananDaftar ??= messaging.onRegistered.listen((nilai) {
+        token = nilai;
+        galat = null;
+        unawaited(_simpanToken(nilai).whenComplete(() => revisi.value++));
+      });
 
       token = await _daftarkan(messaging);
 
@@ -192,14 +215,16 @@ class PushService {
 
       status.value = StatusPush.siap;
     } catch (e) {
+      token = null;
       galat = e.toString();
       status.value =
           KonfigurasiPush.lengkap ? StatusPush.gagal : StatusPush.belumDikonfigurasi;
     }
   }
 
-  /// firebase_messaging 17: pendaftaran lewat register() lalu token
-  /// diterima dari stream onRegistered.
+  /// firebase_messaging 17: pendaftaran lewat register() lalu nilai diterima
+  /// dari stream onRegistered. Di web, nilai ini adalah Firebase Installation
+  /// ID (FID), bukan token lama, dan dikirim lewat field `fid` di FCM HTTP v1.
   ///
   /// Di web, register() WAJIB diberi `vapidKey` dan jalur service worker —
   /// tanpa keduanya token tidak pernah terbit (gejalanya: status siap tapi
@@ -211,18 +236,29 @@ class PushService {
     });
 
     try {
-      await messaging
-          .register(
-            vapidKey: kIsWeb && KonfigurasiPush.vapidKey.isNotEmpty
-                ? KonfigurasiPush.vapidKey
-                : null,
-            serviceWorkerScriptPath:
-                kIsWeb ? '/firebase-messaging-sw.js' : null,
-          )
-          .timeout(
-            const Duration(seconds: 20),
-            onTimeout: () {},
-          );
+      // Plugin langsung berlangganan setelah mendaftarkan service worker. Pada
+      // kunjungan pertama worker masih "installing" sehingga browser menolak
+      // ("no active Service Worker"); mencoba lagi memakai worker yang sudah aktif.
+      for (var percobaan = 1;; percobaan++) {
+        try {
+          await messaging
+              .register(
+                vapidKey: kIsWeb && KonfigurasiPush.vapidKey.isNotEmpty
+                    ? KonfigurasiPush.vapidKey
+                    : null,
+                serviceWorkerScriptPath:
+                    kIsWeb ? '/firebase-messaging-sw.js' : null,
+              )
+              .timeout(
+                const Duration(seconds: 20),
+                onTimeout: () {},
+              );
+          break;
+        } catch (_) {
+          if (!kIsWeb || percobaan >= 6) rethrow;
+          await Future<void>.delayed(const Duration(seconds: 1));
+        }
+      }
       return await token.future.timeout(
         const Duration(seconds: 20),
         onTimeout: () => null,
@@ -238,9 +274,21 @@ class PushService {
       return;
     }
     try {
-      token = await _daftarkan(FirebaseMessaging.instance);
+      final baru = await _daftarkan(FirebaseMessaging.instance);
+      if (baru == null || baru.isEmpty) {
+        token = null;
+        galat = 'Token belum terbit — coba lagi.';
+        status.value = StatusPush.gagal;
+      } else {
+        token = baru;
+        galat = null;
+        await _simpanToken(baru);
+      }
     } catch (e) {
+      token = null;
       galat = e.toString();
+      status.value = StatusPush.gagal;
     }
+    revisi.value++;
   }
 }

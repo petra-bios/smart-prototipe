@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tes Push SMART</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f6f6f4; --kartu: #fff; --teks: #1f1f1d; --redup: #66665f; --garis: #d9d9d3; --utama: #b3261e; --log: #1f1f1d; --log-teks: #eeeeea; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #171716; --kartu: #222220; --teks: #eeeeea; --redup: #a8a8a0; --garis: #3a3a37; --utama: #e5675f; --log: #0e0e0d; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--teks); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 620px; margin: auto; display: grid; gap: 14px; }
+  h1 { margin: 0; font-size: 22px; }
+  h2 { margin: 0 0 4px; font-size: 15px; }
+  p { margin: 0 0 12px; color: var(--redup); }
+  section { background: var(--kartu); border: 1px solid var(--garis); border-radius: 10px; padding: 16px; }
+  label { display: block; margin-bottom: 10px; font-weight: 600; font-size: 13px; }
+  input, select { display: block; width: 100%; margin-top: 4px; padding: 9px 10px; font: inherit; font-weight: 400; color: inherit; background: var(--bg); border: 1px solid var(--garis); border-radius: 7px; }
+  input#target { font-family: ui-monospace, monospace; font-size: 13px; }
+  button { padding: 9px 14px; font: inherit; font-weight: 600; color: var(--teks); background: transparent; border: 1px solid var(--garis); border-radius: 7px; cursor: pointer; }
+  button.utama { color: #fff; background: var(--utama); border-color: var(--utama); }
+  button:disabled { opacity: .55; cursor: wait; }
+  .baris { display: flex; flex-wrap: wrap; gap: 8px; }
+  pre { margin: 0; min-height: 120px; max-height: 340px; overflow: auto; padding: 12px; background: var(--log); color: var(--log-teks); border-radius: 10px; font: 12.5px/1.55 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Tes Push SMART</h1>
+
+  <section>
+    <h2>1. Cek browser ini</h2>
+    <p>Tes pertama tidak memakai Firebase. Kalau notifikasinya tidak muncul, yang memblokir adalah browser atau macOS.</p>
+    <div class="baris">
+      <button id="tesLokal" type="button">Tes notifikasi lokal</button>
+      <button id="daftar" type="button">Daftarkan browser ini</button>
+    </div>
+  </section>
+
+  <form id="form">
+    <section>
+      <h2>2. Kirim lewat FCM</h2>
+      <p>Tempel ID dari menu Notifikasi aplikasi, atau pakai ID hasil "Daftarkan browser ini". Saat menguji aplikasi, tab aplikasinya tidak boleh sedang terlihat.</p>
+      <label>ID perangkat <input id="target" required autocomplete="off" spellcheck="false" placeholder="FID atau token"></label>
+      <label>Judul <input id="judul" value="Tes push SMART"></label>
+      <label>Isi <input id="isi" value="Kalau ini muncul, push sudah jalan."></label>
+      <label>Jenis pesan
+        <select id="jenis">
+          <option value="notification">Notification (ditampilkan Firebase SDK)</option>
+          <option value="data">Data saja (ditampilkan service worker)</option>
+        </select>
+      </label>
+      <button id="kirim" class="utama" type="submit">Kirim</button>
+    </section>
+  </form>
+
+  <pre id="log" role="log" aria-live="polite"></pre>
+</main>
+
+<script type="module">
+  // Versi harus sama dengan service worker dan SDK aplikasi.
+  const SDK = 'https://www.gstatic.com/firebasejs/13.1.0';
+  const $ = (id) => document.getElementById(id);
+  const catat = (teks) => {
+    const waktu = new Date().toLocaleTimeString('id-ID');
+    $('log').textContent += `[${waktu}] ${teks}\n`;
+    $('log').scrollTop = $('log').scrollHeight;
+  };
+
+  const respons = await fetch('/konfigurasi');
+  const { web: konfigurasi, masalah } = await respons.json();
+  masalah.forEach((isi) => catat(`PERINGATAN: ${isi}`));
+  catat(`Project: ${konfigurasi.projectId}`);
+
+  async function mintaIzin() {
+    if (!('Notification' in window)) throw new Error('Browser ini tidak mendukung notifikasi.');
+    const izin = await Notification.requestPermission();
+    catat(`Izin notifikasi: ${izin}`);
+    if (izin !== 'granted') {
+      throw new Error('Izin belum diberikan. Buka pengaturan situs di browser lalu izinkan notifikasi.');
+    }
+  }
+
+  async function tungguAktif() {
+    const batas = new Promise((_, gagal) =>
+      setTimeout(() => gagal(new Error('Service worker belum aktif setelah 15 detik.')), 15000));
+    return Promise.race([navigator.serviceWorker.ready, batas]);
+  }
+
+  $('tesLokal').addEventListener('click', async () => {
+    try {
+      await mintaIzin();
+      new Notification('Tes lokal', { body: 'Notifikasi browser ini berfungsi.' });
+      catat('Tes lokal dipanggil. Kalau tidak ada yang muncul, cek izin browser di System Settings → Notifications dan matikan Focus.');
+    } catch (galat) {
+      catat(`GAGAL: ${galat.message}`);
+    }
+  });
+
+  let terdaftar = false;
+  $('daftar').addEventListener('click', async () => {
+    $('daftar').disabled = true;
+    try {
+      await mintaIzin();
+      await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      const registrasi = await tungguAktif();
+      catat('Service worker aktif.');
+
+      const { initializeApp } = await import(`${SDK}/firebase-app.js`);
+      const { getMessaging, register, onRegistered, onMessage } = await import(`${SDK}/firebase-messaging.js`);
+      const { vapidKey, ...opsi } = konfigurasi;
+      const messaging = getMessaging(initializeApp(opsi));
+
+      if (!terdaftar) {
+        terdaftar = true;
+        onRegistered(messaging, {
+          next: (id) => {
+            $('target').value = id;
+            catat(`Terdaftar. ID: ${id}`);
+          },
+          error: (galat) => catat(`GAGAL: ${galat.message}`),
+        });
+        // Saat tab ini terlihat, Firebase tidak menampilkan notifikasi sistem.
+        onMessage(messaging, (pesan) => {
+          const judul = pesan.notification?.title || pesan.data?.judul || 'SMART';
+          const isi = pesan.notification?.body || pesan.data?.isi || '';
+          catat(`Pesan DITERIMA tab ini: ${judul} — ${isi}`);
+          registrasi.showNotification(judul, { body: isi })
+            .catch((galat) => catat(`GAGAL menampilkan notifikasi: ${galat.message}`));
+        });
+      }
+      await register(messaging, { vapidKey, serviceWorkerRegistration: registrasi });
+    } catch (galat) {
+      catat(`GAGAL: ${galat.message}`);
+    } finally {
+      $('daftar').disabled = false;
+    }
+  });
+
+  $('form').addEventListener('submit', async (kejadian) => {
+    kejadian.preventDefault();
+    $('kirim').disabled = true;
+    try {
+      const jawaban = await fetch('/kirim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: $('target').value,
+          judul: $('judul').value,
+          isi: $('isi').value,
+          jenis: $('jenis').value,
+        }),
+      });
+      const hasil = await jawaban.json();
+      if (hasil.galat) {
+        catat(`GAGAL: ${hasil.galat}`);
+      } else {
+        catat(`Kirim lewat "${hasil.target}" → HTTP ${hasil.http}\n${hasil.respons}`);
+        hasil.petunjuk.forEach((isi) => catat(`→ ${isi}`));
+      }
+    } catch (galat) {
+      catat(`GAGAL: ${galat.message}`);
+    } finally {
+      $('kirim').disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
